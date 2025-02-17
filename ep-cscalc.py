@@ -2,6 +2,8 @@ import math
 import numpy as np
 import argparse
 import sys
+import matplotlib
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(
     description="Calculate EP cross section using different known variables."
@@ -37,15 +39,15 @@ def calculate(
     Q_squared=args.qsquared,
 ):
     alpha = 1 / 137
-    proton_mass = 938.272089  # Units - MeV/c2
+    proton_mass = .938272089  # Units - GeV/c2
 
     if energy_prime is not None and theta is not None:
         print("Using energy, energy_prime, and theta with the following parameters:")
         print("Energy (MeV):", energy)
         print("Energy Prime (MeV):", energy_prime)
-        print("Theta (radians):", theta)
+        print("Theta (degrees):", theta)
 
-        Q_squared = 2 * energy * energy_prime * (1 - math.cos(theta))
+        Q_squared = 2 * energy * energy_prime * (1 - math.cos(math.radians(theta)))
     elif Q_squared is not None and x is not None:
         print("Using x, Q-squared, and energy with the following parameters:")
         print("X:", x)
@@ -53,34 +55,42 @@ def calculate(
         print("Energy (MeV):", energy)
 
         energy_prime = energy - (Q_squared**2) / (2 * proton_mass * x)
-        theta = math.acos((-Q_squared) / (2 * energy * energy_prime) + 1)
+        theta = math.acos(((-Q_squared) / (2 * energy * energy_prime)) + 1)
     elif Q_squared is not None and theta is not None:
         print("Using energy, theta, and Q-squared with the following parameters:")
         print("Energy (MeV):", energy)
-        print("Theta (radians):", theta)
+        print("Theta (degrees):", theta)
         print("Q-squared:", Q_squared)
 
-        energy_prime = (Q_squared) / ((2 * energy) * (1 - math.cos(theta)))
+        energy_prime = (Q_squared) / ((2 * energy) * (1 - math.cos(math.radians(theta))))
 
         # Additional Equations
         # x = Q_squared/(2*proton_mass*(energy - energy_prime))
         # x = ((2*energy*energy_prime)*(1-math.cos(theta)))/((2*proton_mass)*(energy-energy_prime))
-
     mott_cs = (
         (alpha**2)
-        / (4 * (energy**2) * (math.sin(theta / 2)) ** 4)
         * (energy_prime / energy)
+        #* ((math.cos(math.radians(theta)/2))**2)
+        / (4 * (energy**2) * ((math.sin(math.radians(theta/2))) ** 4))
     )
     print("===","Mott Cross-section:", mott_cs)
-    tau = Q_squared / (4 * (proton_mass) ** 2)
+    tau = Q_squared / (4 * (proton_mass**2))
     print("Tau:", tau)
+
+    photon_pol = (1 + 2*(1+tau)*(math.tan(math.radians(theta/2)))**2)**(-1)
+    print("photon_pol:", photon_pol)
+
     G_E_p, G_M_p = calculate_G_proton(Q_squared)
     G_E_n, G_M_n = calculate_G_neutron(Q_squared)
 
-    return (mott_cs) * (
-        (((G_E_p**2) + (tau) * (G_M_p**2)) / (1 + tau)) * ((math.cos(theta / 2)) ** 2)
-        + 2 * tau * (G_M_p**2) * ((math.sin(theta / 2)) ** 2)
-    )
+    reduced_cs = photon_pol*(G_E_p**2)+tau*(G_M_p**2)
+    print("reduced Cross-section:", reduced_cs)
+
+    return ((mott_cs) * ((reduced_cs))) / (photon_pol*(1+tau))
+#    return (mott_cs) * (
+#        (((G_E_p**2) + (tau) * (G_M_p**2)) / (1 + tau)) * ((math.cos(math.radians(theta) / 2)) ** 2)
+#        + 2 * tau * (G_M_p**2) * ((math.sin(math.radians(theta) / 2)) ** 2)
+#    )
 
 
 def calculate_G_proton(Q_squared):
@@ -120,19 +130,19 @@ def calculate_G_proton(Q_squared):
         ]
     )
 
-    G_E_p = np.zeros(shape=(12, 1))  # values for G - make sure to sum over
-    G_M_p = np.zeros(shape=(12, 1))  # values for G - make sure to sum over
+    G_E_p = np.zeros(12)  # values for G - make sure to sum over
+    G_M_p = np.zeros(12)  # values for G - make sure to sum over
 
-    pion_mass = 139.57  # MeV
-    t_0 = -700  # MeV2
+    pion_mass = 0.13957  # GeV
+    t_0 = -0.7  # GeV2
     t_cut = 4 * (pion_mass**2)
     z = (np.sqrt(t_cut + Q_squared) - np.sqrt(t_cut - t_0)) / (
         np.sqrt(t_cut + Q_squared) + np.sqrt(t_cut - t_0)
     )
 
     for x in range(12):
-        G_E_p[x] = [a_G_E_p[x] * (z**x)]
-        G_M_p[x] = [a_G_M_p[x] * (z**x)]
+        G_E_p[x] = a_G_E_p[x] * (z**x)
+        G_M_p[x] = a_G_M_p[x] * (z**x)
 
     sum_G_E_p = np.sum(G_E_p)
     sum_G_M_p = np.sum(G_M_p)
@@ -178,8 +188,8 @@ def calculate_G_neutron(Q_squared):
     G_E_n = np.zeros(shape=(10, 1))  # values for G - make sure to sum over
     G_M_n = np.zeros(shape=(10, 1))  # values for G - make sure to sum over
 
-    pion_mass = 139.57  # MeV
-    t_0 = -700  # MeV2
+    pion_mass = .13957  # GeV/c^2
+    t_0 = -0.7  # GeV2
     t_cut = 4 * (pion_mass**2)
     z = (np.sqrt(t_cut + Q_squared) - np.sqrt(t_cut - t_0)) / (
         np.sqrt(t_cut + Q_squared) + np.sqrt(t_cut - t_0)
@@ -196,16 +206,161 @@ def calculate_G_neutron(Q_squared):
     return sum_G_E_n, sum_G_M_n
 
 
+def graph_photo_pol_cs():
+    alpha = 1 / 137
+    proton_mass = .938272089  # Units - GeV/c2
+    energy = np.array([
+        1.148,
+        1.148,
+        1.882,
+        2.235,
+        2.235,
+        2.235,
+        2.235,
+        2.235,
+        3.114,
+        3.114,
+        3.114,
+        3.114,
+        3.114,
+        3.114,
+        3.114,
+        3.114,
+    ])
+    Q_squared = np.array([
+        0.6200,
+        0.8172,
+        0.8995,
+        0.6182,
+        1.1117,
+        1.6348,
+        2.2466,
+        2.7802,
+        0.4241,
+        0.6633,
+        0.9312,
+        2.0354,
+        2.6205,
+        3.1685,
+        3.7561,
+        4.2330
+    ])
+    theta = np.array([
+        47.97,
+        59.99,
+        33.95,
+        21.97,
+        31.95,
+        42.97,
+        58.97,
+        79.97,
+        12.47,
+        15.97,
+        19.46,
+        32.97,
+        40.97,
+        49.97,
+        64.97,
+        77.97,
+    ])
+    tau = np.zeros(len(energy))
+    photon_pol = np.zeros(len(energy))
+    energy_prime = np.zeros(len(energy))
+    ep_cs = np.zeros(len(energy))
+
+    for x in range(len(energy)):
+        tau[x] = Q_squared[x] / (4 * (proton_mass**2))
+        photon_pol[x] = (1 + 2*(1+tau[x])*(math.tan(math.radians(theta[x]/2)))**2)**(-1)
+        energy_prime[x] = energy[x] - (Q_squared[x]**2) / (2 * proton_mass * x)
+        ep_cs[x] = calculate(energy=energy[x], theta=theta[x], Q_squared=Q_squared[x])
+    matplotlib.use("TkAgg")
+    plt.plot(photon_pol, ep_cs)
+    plt.xlabel("photon_pol")
+    plt.ylabel("sigma_ep")
+    plt.show()
+
+def graph_E_prime_cs():
+    alpha = 1 / 137
+    proton_mass = .938272089  # Units - GeV/c2
+    energy = np.array([
+        1.148,
+        1.148,
+        1.882,
+        2.235,
+        2.235,
+        2.235,
+        2.235,
+        2.235,
+        3.114,
+        3.114,
+        3.114,
+        3.114,
+        3.114,
+        3.114,
+        3.114,
+        3.114,
+    ])
+    Q_squared = np.array([
+        0.6200,
+        0.8172,
+        0.8995,
+        0.6182,
+        1.1117,
+        1.6348,
+        2.2466,
+        2.7802,
+        0.4241,
+        0.6633,
+        0.9312,
+        2.0354,
+        2.6205,
+        3.1685,
+        3.7561,
+        4.2330
+    ])
+    theta = np.array([
+        47.97,
+        59.99,
+        33.95,
+        21.97,
+        31.95,
+        42.97,
+        58.97,
+        79.97,
+        12.47,
+        15.97,
+        19.46,
+        32.97,
+        40.97,
+        49.97,
+        64.97,
+        77.97,
+    ])
+    energy_prime = np.zeros(len(energy))
+    ep_cs = np.zeros(len(energy))
+    for x in range(len(energy)):
+        energy_prime[x] = energy[x] - (Q_squared[x]**2) / (2 * proton_mass * x)
+        ep_cs[x] = calculate(energy=energy[x], theta=theta[x], Q_squared=Q_squared[x])
+    matplotlib.use("TkAgg")
+    plt.plot(energy_prime, ep_cs)
+    plt.xlabel("E'")
+    plt.ylabel("sigma_ep")
+    plt.show()
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 3:
         print(
-            "===","Electron-Proton scattering cross section calculation (lab frame):",
+            "===","E_P scattering cs (lab frame):",
             calculate(),
+            "barns/steradians"
         )
+    elif len(sys.argv) == 1:
+        graph_E_prime_cs()
+        graph_photo_pol_cs()
     else:
-        print("Utilize -e for energy (in MeV)")
-        print("Utilize -t for scattering angle (in radians)")
-        print("Utilize -ep energy prime of particle interaction (in MeV)")
+        print("Utilize -e for energy (in GeV)")
+        print("Utilize -t for scattering angle (in degrees)")
+        print("Utilize -ep energy prime of particle interaction (in GeV)")
         print("Utilize -q for the Q-squared parameter")
         print("Utilize -x for form factor")
         print("Example: python .py -e [value] -ep [value] -t [value]")
