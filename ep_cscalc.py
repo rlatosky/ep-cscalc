@@ -2,8 +2,6 @@ import math
 import numpy as np
 import argparse
 import sys
-import matplotlib
-import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(
     description="Calculate EP cross section using different known variables."
@@ -30,6 +28,7 @@ parser.add_argument("-x", "--x", type=float, help="x input parameter for form fa
 
 args = parser.parse_args()
 
+# GOAL: event rate of protons = luminosity * cross section
 
 def calculate(
     energy=args.energy,
@@ -82,6 +81,8 @@ def calculate(
 
     G_E_p, G_M_p = calculate_G_proton(Q_squared)
     G_E_n, G_M_n = calculate_G_neutron(Q_squared)
+
+    G_D = 1 / (1+(Q_squared**2/0.71))**2
 
     reduced_cs = photon_pol*(G_E_p**2)+tau*(G_M_p**2)
     print("reduced Cross-section:", reduced_cs)
@@ -136,6 +137,8 @@ def calculate_G_proton(Q_squared):
     pion_mass = 0.13957  # GeV
     t_0 = -0.7  # GeV2
     t_cut = 4 * (pion_mass**2)
+
+
     z = (np.sqrt(t_cut + Q_squared) - np.sqrt(t_cut - t_0)) / (
         np.sqrt(t_cut + Q_squared) + np.sqrt(t_cut - t_0)
     )
@@ -185,8 +188,8 @@ def calculate_G_neutron(Q_squared):
         ]
     )
 
-    G_E_n = np.zeros(shape=(10, 1))  # values for G - make sure to sum over
-    G_M_n = np.zeros(shape=(10, 1))  # values for G - make sure to sum over
+    G_E_n = np.zeros(12)  # values for G - make sure to sum over
+    G_M_n = np.zeros(12)  # values for G - make sure to sum over
 
     pion_mass = .13957  # GeV/c^2
     t_0 = -0.7  # GeV2
@@ -196,8 +199,8 @@ def calculate_G_neutron(Q_squared):
     )
 
     for x in range(10):
-        G_E_n[x] = [a_G_E_n[x] * (z**x)]
-        G_M_n[x] = [a_G_M_n[x] * (z**x)]
+        G_E_n[x] = a_G_E_n[x] * (z**x)
+        G_M_n[x] = a_G_M_n[x] * (z**x)
 
     sum_G_E_n = np.sum(G_E_n)
     sum_G_M_n = np.sum(G_M_n)
@@ -206,146 +209,6 @@ def calculate_G_neutron(Q_squared):
     return sum_G_E_n, sum_G_M_n
 
 
-def graph_photo_pol_cs():
-    alpha = 1 / 137
-    proton_mass = .938272089  # Units - GeV/c2
-    energy = np.array([
-        1.148,
-        1.148,
-        1.882,
-        2.235,
-        2.235,
-        2.235,
-        2.235,
-        2.235,
-        3.114,
-        3.114,
-        3.114,
-        3.114,
-        3.114,
-        3.114,
-        3.114,
-        3.114,
-    ])
-    Q_squared = np.array([
-        0.6200,
-        0.8172,
-        0.8995,
-        0.6182,
-        1.1117,
-        1.6348,
-        2.2466,
-        2.7802,
-        0.4241,
-        0.6633,
-        0.9312,
-        2.0354,
-        2.6205,
-        3.1685,
-        3.7561,
-        4.2330
-    ])
-    theta = np.array([
-        47.97,
-        59.99,
-        33.95,
-        21.97,
-        31.95,
-        42.97,
-        58.97,
-        79.97,
-        12.47,
-        15.97,
-        19.46,
-        32.97,
-        40.97,
-        49.97,
-        64.97,
-        77.97,
-    ])
-    tau = np.zeros(len(energy))
-    photon_pol = np.zeros(len(energy))
-    energy_prime = np.zeros(len(energy))
-    ep_cs = np.zeros(len(energy))
-
-    for x in range(len(energy)):
-        tau[x] = Q_squared[x] / (4 * (proton_mass**2))
-        photon_pol[x] = (1 + 2*(1+tau[x])*(math.tan(math.radians(theta[x]/2)))**2)**(-1)
-        energy_prime[x] = energy[x] - (Q_squared[x]**2) / (2 * proton_mass * x)
-        ep_cs[x] = calculate(energy=energy[x], theta=theta[x], Q_squared=Q_squared[x])
-    matplotlib.use("TkAgg")
-    plt.plot(photon_pol, ep_cs)
-    plt.xlabel("photon_pol")
-    plt.ylabel("sigma_ep")
-    plt.show()
-
-def graph_E_prime_cs():
-    alpha = 1 / 137
-    proton_mass = .938272089  # Units - GeV/c2
-    energy = np.array([
-        1.148,
-        1.148,
-        1.882,
-        2.235,
-        2.235,
-        2.235,
-        2.235,
-        2.235,
-        3.114,
-        3.114,
-        3.114,
-        3.114,
-        3.114,
-        3.114,
-        3.114,
-        3.114,
-    ])
-    Q_squared = np.array([
-        0.6200,
-        0.8172,
-        0.8995,
-        0.6182,
-        1.1117,
-        1.6348,
-        2.2466,
-        2.7802,
-        0.4241,
-        0.6633,
-        0.9312,
-        2.0354,
-        2.6205,
-        3.1685,
-        3.7561,
-        4.2330
-    ])
-    theta = np.array([
-        47.97,
-        59.99,
-        33.95,
-        21.97,
-        31.95,
-        42.97,
-        58.97,
-        79.97,
-        12.47,
-        15.97,
-        19.46,
-        32.97,
-        40.97,
-        49.97,
-        64.97,
-        77.97,
-    ])
-    energy_prime = np.zeros(len(energy))
-    ep_cs = np.zeros(len(energy))
-    for x in range(len(energy)):
-        energy_prime[x] = energy[x] - (Q_squared[x]**2) / (2 * proton_mass * x)
-        ep_cs[x] = calculate(energy=energy[x], theta=theta[x], Q_squared=Q_squared[x])
-    matplotlib.use("TkAgg")
-    plt.plot(energy_prime, ep_cs)
-    plt.xlabel("E'")
-    plt.ylabel("sigma_ep")
-    plt.show()
 
 if __name__ == "__main__":
     if len(sys.argv) > 3:
@@ -354,9 +217,6 @@ if __name__ == "__main__":
             calculate(),
             "barns/steradians"
         )
-    elif len(sys.argv) == 1:
-        graph_E_prime_cs()
-        graph_photo_pol_cs()
     else:
         print("Utilize -e for energy (in GeV)")
         print("Utilize -t for scattering angle (in degrees)")
