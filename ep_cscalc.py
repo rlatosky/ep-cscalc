@@ -39,6 +39,8 @@ def calculate(
 ):
     alpha = 1 / 137
     proton_mass = .938272089  # Units - GeV/c2
+    h_bar = 6.582e-16
+
 
     if energy_prime is not None and theta is not None:
         print("Using energy, energy_prime, and theta with the following parameters:")
@@ -66,8 +68,9 @@ def calculate(
         # Additional Equations
         # x = Q_squared/(2*proton_mass*(energy - energy_prime))
         # x = ((2*energy*energy_prime)*(1-math.cos(theta)))/((2*proton_mass)*(energy-energy_prime))
+
     mott_cs = (
-        (alpha**2)
+        (alpha)**2
         * (energy_prime / energy)
         #* ((math.cos(math.radians(theta)/2))**2)
         / (4 * (energy**2) * ((math.sin(math.radians(theta/2))) ** 4))
@@ -87,12 +90,23 @@ def calculate(
     reduced_cs = photon_pol*(G_E_p**2)+tau*(G_M_p**2)
     print("reduced Cross-section:", reduced_cs)
 
+    electron_rate = 100e-6/1e-9 #100e-6/1.6e-19
+    proton_num_density =  (6.022e23)*(0.07085)/(2.016)
+    target_len = 10 #cm
+    solid_angle = 75e-3 # steradians
+
+    print(
+        "Event rate:",
+        ( (mott_cs) * (reduced_cs) / (photon_pol*(1+tau)) )
+        * (electron_rate) * (proton_num_density) * (target_len)
+        * (solid_angle)
+          )
+
     return ((mott_cs) * ((reduced_cs))) / (photon_pol*(1+tau))
 #    return (mott_cs) * (
 #        (((G_E_p**2) + (tau) * (G_M_p**2)) / (1 + tau)) * ((math.cos(math.radians(theta) / 2)) ** 2)
 #        + 2 * tau * (G_M_p**2) * ((math.sin(math.radians(theta) / 2)) ** 2)
 #    )
-
 
 def calculate_G_proton(Q_squared):
     # Taken from Supplemental materials, available at: https://doi.org/10.1016/j.physletb.2017.11.023
@@ -131,8 +145,8 @@ def calculate_G_proton(Q_squared):
         ]
     )
 
-    G_E_p = np.zeros(12)  # values for G - make sure to sum over
-    G_M_p = np.zeros(12)  # values for G - make sure to sum over
+    G_E_p = np.zeros(13)  # values for G - make sure to sum over
+    G_M_p = np.zeros(13)  # values for G - make sure to sum over
 
     pion_mass = 0.13957  # GeV
     t_0 = -0.7  # GeV2
@@ -143,7 +157,7 @@ def calculate_G_proton(Q_squared):
         np.sqrt(t_cut + Q_squared) + np.sqrt(t_cut - t_0)
     )
 
-    for x in range(12):
+    for x in range(13):
         G_E_p[x] = a_G_E_p[x] * (z**x)
         G_M_p[x] = a_G_M_p[x] * (z**x)
 
@@ -188,8 +202,8 @@ def calculate_G_neutron(Q_squared):
         ]
     )
 
-    G_E_n = np.zeros(12)  # values for G - make sure to sum over
-    G_M_n = np.zeros(12)  # values for G - make sure to sum over
+    G_E_n = np.zeros(11)  # values for G - make sure to sum over
+    G_M_n = np.zeros(11)  # values for G - make sure to sum over
 
     pion_mass = .13957  # GeV/c^2
     t_0 = -0.7  # GeV2
@@ -198,7 +212,7 @@ def calculate_G_neutron(Q_squared):
         np.sqrt(t_cut + Q_squared) + np.sqrt(t_cut - t_0)
     )
 
-    for x in range(10):
+    for x in range(11):
         G_E_n[x] = a_G_E_n[x] * (z**x)
         G_M_n[x] = a_G_M_n[x] * (z**x)
 
@@ -216,6 +230,13 @@ if __name__ == "__main__":
             "===","E_P scattering cs (lab frame):",
             calculate(),
             "barns/steradians"
+        )
+    elif args.qsquared is not None:
+        print(
+            "===", "Calculating form factors",
+            calculate_G_proton(args.qsquared),
+            calculate_G_neutron(args.qsquared),
+            "==="
         )
     else:
         print("Utilize -e for energy (in GeV)")
