@@ -38,9 +38,9 @@ def calculate(
     Q_squared=args.qsquared,
 ):
     alpha = 1 / 137
-    proton_mass = .938272089  # Units - GeV/c2
+    proton_mass = 0.938272089  # Units - GeV/c2
     h_bar = 6.582e-16
-
+    barns_conv = 389.4
 
     if energy_prime is not None and theta is not None:
         print("Using energy, energy_prime, and theta with the following parameters:")
@@ -62,8 +62,9 @@ def calculate(
         print("Energy (MeV):", energy)
         print("Theta (degrees):", theta)
         print("Q-squared:", Q_squared)
+        energy_prime = (Q_squared) / ((4 * energy) * (math.sin(math.radians(theta/2))**2))
 
-        energy_prime = (Q_squared) / ((2 * energy) * (1 - math.cos(math.radians(theta))))
+        #energy_prime = (Q_squared) / ((2 * energy) * (1 - math.cos(math.radians(theta))))
 
         # Additional Equations
         # x = Q_squared/(2*proton_mass*(energy - energy_prime))
@@ -71,11 +72,11 @@ def calculate(
 
     mott_cs = (
         (alpha)**2
-        * (energy_prime / energy)
-        #* ((math.cos(math.radians(theta)/2))**2)
-        / (4 * (energy**2) * ((math.sin(math.radians(theta/2))) ** 4))
+        #* (energy_prime / energy)
+        #* ((math.cos(math.radians(theta/2)))**2)
+        / (4 * (energy**2) * (math.sin(math.radians(theta/2))**4))
     )
-    print("===","Mott Cross-section:", mott_cs)
+    print("===","Mott Cross-section:", mott_cs * barns_conv, "microb/sr")
     tau = Q_squared / (4 * (proton_mass**2))
     print("Tau:", tau)
 
@@ -87,7 +88,7 @@ def calculate(
 
     G_D = 1 / (1+(Q_squared**2/0.71))**2
 
-    reduced_cs = photon_pol*(G_E_p**2)+tau*(G_M_p**2)
+    reduced_cs = photon_pol*(G_E_p**2) + tau*(G_M_p**2)
     print("reduced Cross-section:", reduced_cs)
 
     electron_rate = 100e-6/1e-9 #100e-6/1.6e-19
@@ -102,7 +103,7 @@ def calculate(
         * (solid_angle)
           )
 
-    return ((mott_cs) * ((reduced_cs))) / (photon_pol*(1+tau))
+    return barns_conv * ( mott_cs * reduced_cs) / ( photon_pol*(1 + tau) )
 #    return (mott_cs) * (
 #        (((G_E_p**2) + (tau) * (G_M_p**2)) / (1 + tau)) * ((math.cos(math.radians(theta) / 2)) ** 2)
 #        + 2 * tau * (G_M_p**2) * ((math.sin(math.radians(theta) / 2)) ** 2)
@@ -229,7 +230,7 @@ if __name__ == "__main__":
         print(
             "===","E_P scattering cs (lab frame):",
             calculate(),
-            "barns/steradians"
+            "microbarns/steradians"
         )
     elif args.qsquared is not None:
         print(
